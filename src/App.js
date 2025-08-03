@@ -1,12 +1,36 @@
-import logo from './logo.svg';
-import './App.css';
+import { BrowserRouter as Router, Routes , Route } from 'react-router-dom';
+import Login from './pages/Login';
+import Dashboard from './pages/Dashboard';
+import Users from './pages/Users';
+import Checkpoints from './pages/Checkpoints';
+import Reports from './pages/Reports';
+import Navbar from './components/Navbar';
 
-function App() {
+function Layout({ children }) {
   return (
-    <div className="text-3xl font-bold text-blue-500 p-4">
-      Riley Falcon Guard Patrol System
+    <div className="flex">
+      <Navbar />
+      <main className="flex-1 p-4">{children}</main>
     </div>
   );
 }
+
+
+function App() {
+  return (
+    <Router>
+      <Routes>
+        <Route path="/" element={<Login />} />
+        <Route path="/dashboard" element={<Layout><Dashboard /> </Layout>} />
+        <Route path="/users" element={<Layout><Users /></Layout>} />
+        <Route path="/checkpoints" element={<Layout><Checkpoints /></Layout>} />
+        <Route path="/reports" element={<Layout><Reports /></Layout>} />
+      </Routes>
+    </Router>
+  );
+}
+
+
+
 
 export default App;
