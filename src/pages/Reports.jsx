@@ -5,6 +5,7 @@ const Reports = () => {
     userId: '',
     reportType: '',
     notes: '',
+    photo: null,
   });
 
   const [filters, setFilters] = useState({
@@ -14,33 +15,35 @@ const Reports = () => {
     reportType: '',
   });
 
-  const [reports, setReports] = useState([
-    // Temporary data for display
-    {
-      userId: '001',
-      reportType: 'Incident',
-      notes: 'Guard reported a break-in at 3am.',
-      date: '2025-07-28',
-    },
-    {
-      userId: '002',
-      reportType: 'Observation',
-      notes: 'Everything normal at gate 2.',
-      date: '2025-07-28',
-    },
-  ]);
+  const [reports, setReports] = useState([]);
 
   const handleReportSubmit = (e) => {
     e.preventDefault();
-    console.log('Submitted Report:', report);
-    // TODO: POST to Express backend
-    setReport({ userId: '', reportType: '', notes: '' });
+
+    const newReport = {
+      ...report,
+      photoName: report.photo ? report.photo.name : 'None',
+      date: new Date().toISOString().split('T')[0], // YYYY-MM-DD
+    };
+
+    setReports([...reports, newReport]);
+
+    // Reset form
+    setReport({
+      userId: '',
+      reportType: '',
+      notes: '',
+      photo: null,
+    });
   };
 
-  const handleFilter = () => {
-    console.log('Filtering by:', filters);
-    // TODO: Fetch filtered reports from backend and update setReports()
-  };
+  const filteredReports = reports.filter((r) => {
+    const matchUserId = filters.userId ? r.userId.includes(filters.userId) : true;
+    const matchType = filters.reportType ? r.reportType.includes(filters.reportType) : true;
+    const matchFrom = filters.fromDate ? new Date(r.date) >= new Date(filters.fromDate) : true;
+    const matchTo = filters.toDate ? new Date(r.date) <= new Date(filters.toDate) : true;
+    return matchUserId && matchType && matchFrom && matchTo;
+  });
 
   return (
     <div className="space-y-8 p-6">
@@ -54,25 +57,41 @@ const Reports = () => {
             value={report.userId}
             onChange={(e) => setReport({ ...report, userId: e.target.value })}
             className="border p-2 rounded"
+            required
           />
-          <input
-            type="text"
-            placeholder="Report Type"
+
+          <select
             value={report.reportType}
             onChange={(e) => setReport({ ...report, reportType: e.target.value })}
             className="border p-2 rounded"
-          />
+            required
+          >
+            <option value="">Select Report Type</option>
+            <option value="Incident Report">Incident Report</option>
+            <option value="Normal Report">Normal Report</option>
+          </select>
+
           <textarea
             placeholder="Notes"
             value={report.notes}
             onChange={(e) => setReport({ ...report, notes: e.target.value })}
             className="border p-2 rounded col-span-1 md:col-span-2"
+            required
           />
+
+          <input
+            type="file"
+            accept="image/*"
+            capture="environment"
+            onChange={(e) => setReport({ ...report, photo: e.target.files[0] })}
+            className="col-span-1 md:col-span-2"
+          />
+
           <button
             type="submit"
             className="bg-red-600 text-white px-4 py-2 rounded hover:bg-red-700"
           >
-            Submit
+            Submit Report
           </button>
         </form>
       </div>
@@ -109,7 +128,7 @@ const Reports = () => {
           />
         </div>
         <button
-          onClick={handleFilter}
+          onClick={() => {}}
           className="mt-4 bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700"
         >
           Filter
@@ -123,25 +142,27 @@ const Reports = () => {
           <thead className="bg-gray-100">
             <tr>
               <th className="p-2 border">User ID</th>
-              <th className="p-2 border">Report Type</th>
+              <th className="p-2 border">Type</th>
               <th className="p-2 border">Notes</th>
+              <th className="p-2 border">Photo</th>
               <th className="p-2 border">Date</th>
             </tr>
           </thead>
           <tbody>
-            {reports.length > 0 ? (
-              reports.map((r, index) => (
+            {filteredReports.length > 0 ? (
+              filteredReports.map((r, index) => (
                 <tr key={index}>
                   <td className="p-2 border">{r.userId}</td>
                   <td className="p-2 border">{r.reportType}</td>
                   <td className="p-2 border">{r.notes}</td>
+                  <td className="p-2 border">{r.photoName}</td>
                   <td className="p-2 border">{r.date}</td>
                 </tr>
               ))
             ) : (
               <tr>
-                <td colSpan="4" className="p-2 text-center text-gray-500">
-                  No results found
+                <td colSpan="5" className="p-2 text-center text-gray-500">
+                  No reports found
                 </td>
               </tr>
             )}

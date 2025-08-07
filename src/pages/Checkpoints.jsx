@@ -1,4 +1,5 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
+import { Html5QrcodeScanner } from 'html5-qrcode';
 
 function Checkpoints() {
   const [formData, setFormData] = useState({
@@ -16,6 +17,35 @@ function Checkpoints() {
   });
 
   const [checkpoints, setCheckpoints] = useState([]);
+
+  // QR Code scanner setup
+  useEffect(() => {
+    const scanner = new Html5QrcodeScanner(
+      'qr-reader',
+      {
+        fps: 10,
+        qrbox: { width: 250, height: 250 },
+      },
+      false
+    );
+
+    scanner.render(
+      (decodedText) => {
+        setFormData((prev) => ({ ...prev, qrCode: decodedText }));
+        scanner.clear(); // stop scanner after successful scan
+      },
+      (error) => {
+        // console.log(error); // You can log errors if needed
+      }
+    );
+
+    // Clean up scanner on unmount
+    return () => {
+      scanner.clear().catch((error) =>
+        console.error('Failed to clear QR scanner', error)
+      );
+    };
+  }, []);
 
   const handleVisitSubmit = (e) => {
     e.preventDefault();
@@ -59,6 +89,7 @@ function Checkpoints() {
           className="border px-3 py-2 rounded"
           required
         />
+
         <select
           name="region"
           value={formData.region}
@@ -71,15 +102,22 @@ function Checkpoints() {
           <option value="Mombasa">Mombasa</option>
           <option value="Kisumu">Kisumu</option>
         </select>
-        <input
-          type="text"
-          name="qrCode"
-          value={formData.qrCode}
-          onChange={(e) => setFormData({ ...formData, qrCode: e.target.value })}
-          placeholder="Scan QR Code"
-          className="border px-3 py-2 rounded"
-          required
-        />
+
+        {/* QR Code Scanner */}
+        <div className="col-span-2">
+          <label className="block mb-2 font-semibold">Scan QR Code</label>
+          <div id="qr-reader" className="w-full max-w-xs mx-auto mb-3"></div>
+          <input
+            type="text"
+            name="qrCode"
+            value={formData.qrCode}
+            onChange={(e) => setFormData({ ...formData, qrCode: e.target.value })}
+            placeholder="QR Code Result"
+            className="border px-3 py-2 rounded w-full"
+            readOnly
+          />
+        </div>
+
         <textarea
           name="observation"
           value={formData.observation}
@@ -87,12 +125,14 @@ function Checkpoints() {
           placeholder="On-Site Observation"
           className="border px-3 py-2 rounded col-span-2"
         ></textarea>
+
         <input
           type="file"
           accept="image/*,video/*"
           onChange={(e) => setFormData({ ...formData, media: e.target.files[0] })}
           className="col-span-2"
         />
+
         <div className="md:col-span-2 text-right">
           <button type="submit" className="bg-blue-700 text-white px-6 py-2 rounded hover:bg-blue-800">
             Submit Visit
@@ -130,9 +170,7 @@ function Checkpoints() {
       {/* Results Table */}
       <div className="bg-white p-4 rounded shadow">
         <div className="flex justify-between items-center mb-2">
-          <p className="text-sm text-gray-600">
-            {filteredCheckpoints.length} Results Found
-          </p>
+          <p className="text-sm text-gray-600">{filteredCheckpoints.length} Results Found</p>
           <div className="space-x-2">
             <button className="bg-yellow-500 px-3 py-1 rounded text-white">Export to Excel</button>
             <button className="bg-blue-800 px-3 py-1 rounded text-white">Print</button>
@@ -164,7 +202,9 @@ function Checkpoints() {
               ))}
               {filteredCheckpoints.length === 0 && (
                 <tr>
-                  <td colSpan="6" className="text-center py-4 text-gray-500">No records found.</td>
+                  <td colSpan="6" className="text-center py-4 text-gray-500">
+                    No records found.
+                  </td>
                 </tr>
               )}
             </tbody>
