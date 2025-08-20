@@ -1,4 +1,4 @@
-import Navbar from "../components/Navbar";
+// import Navbar from "../components/Navbar";
 
 function Dashboard () {
     return <h1 className="text-2xl font-bold">Dashboard Page</h1>;

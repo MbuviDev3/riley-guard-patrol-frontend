@@ -1,41 +1,56 @@
 import React, { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, Link } from 'react-router-dom';
+import logo from '../assets/rileyfalconsecurity_logo.jpeg';
+import axios from 'axios';
 
 function Login() {
-  const [idNumber, setIdNumber] = useState('');
+  const [userId, setUserId] = useState('');
   const [password, setPassword] = useState('');
+  const [error, setError] = useState('');
   const navigate = useNavigate();
 
-  const handleLogin = (e) => {
+  const handleLogin = async (e) => {
     e.preventDefault();
+    setError('');
 
-    // Dummy auth logic for now
-    if (idNumber && password) {
-      navigate('/dashboard');
-    } else {
-      alert('Please enter both ID number and password');
+    try {
+      const res = await axios.post("http://localhost:5000/api/login", {
+        user_id: userId,   // ✅ Backend expects user_id
+        password
+      });
+
+
+      console.log("Login success:", res.data);
+
+      // ✅ Store user info in localStorageapi
+      localStorage.setItem("user", JSON.stringify(res.data.user));
+
+      navigate("/supervisor/scancheckpoint");
+    } catch (err) {
+      setError(err.response?.data?.message || "Login failed");
     }
   };
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-gray-100">
       <div className="bg-white p-8 rounded-lg shadow-md w-full max-w-md">
-        {/* Logo or Title */}
-        <div className="text-center mb-6">
-          <h1 className="text-3xl font-bold text-blue-900">🛡 Riley Falcon</h1>
+        <div className="flex items-center justify-center mb-4">
+          <img src={logo} alt="Logo" className="w-32 h-32 object-contain" />
         </div>
 
-        {/* Login Form */}
+        {/* Error Message */}
+        {error && <p className="text-red-500 text-center font-medium mb-2">{error}</p>}
+
         <form onSubmit={handleLogin} className="space-y-4">
           <div>
-            <label htmlFor="idNumber" className="block text-gray-700 font-medium mb-1">
-              ID Number
+            <label htmlFor="userId" className="block text-gray-700 font-medium mb-1">
+            User ID
             </label>
             <input
-              id="idNumber"
+              id="userId"
               type="text"
-              value={idNumber}
-              onChange={(e) => setIdNumber(e.target.value)}
+              value={userId}
+              onChange={(e) => setUserId(e.target.value)}
               className="w-full px-4 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
               placeholder="Enter your ID number"
             />
@@ -61,6 +76,13 @@ function Login() {
           >
             Login
           </button>
+
+          <p className="text-center mt-4 text-gray-600">
+            Don't have an account?{' '}
+            <Link to="/signup" className="text-blue-600 hover:underline font-semibold">
+              Sign Up
+            </Link>
+          </p>
         </form>
       </div>
     </div>

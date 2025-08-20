@@ -1,218 +1,111 @@
-import React, { useState, useEffect } from 'react';
-import { Html5QrcodeScanner } from 'html5-qrcode';
+import React, { useState, useEffect, useRef } from 'react';
+import axios from 'axios';
+import { QRCodeCanvas } from 'qrcode.react';
 
-function Checkpoints() {
-  const [formData, setFormData] = useState({
-    userId: '',
-    region: '',
-    qrCode: '',
-    observation: '',
-    media: null,
-  });
-
-  const [filters, setFilters] = useState({
-    fromDate: '',
-    toDate: '',
-    filterUserId: '',
-  });
-
+export default function Checkpoints() {
   const [checkpoints, setCheckpoints] = useState([]);
+  const [name, setName] = useState('');
+  const [location, setLocation] = useState('');
+  const qrRef = useRef();
 
-  // QR Code scanner setup
-  useEffect(() => {
-    const scanner = new Html5QrcodeScanner(
-      'qr-reader',
-      {
-        fps: 10,
-        qrbox: { width: 250, height: 250 },
-      },
-      false
-    );
-
-    scanner.render(
-      (decodedText) => {
-        setFormData((prev) => ({ ...prev, qrCode: decodedText }));
-        scanner.clear(); // stop scanner after successful scan
-      },
-      (error) => {
-        // console.log(error); // You can log errors if needed
-      }
-    );
-
-    // Clean up scanner on unmount
-    return () => {
-      scanner.clear().catch((error) =>
-        console.error('Failed to clear QR scanner', error)
-      );
-    };
-  }, []);
-
-  const handleVisitSubmit = (e) => {
-    e.preventDefault();
-
-    const newCheckpoint = {
-      ...formData,
-      date: new Date().toLocaleDateString(),
-      mediaAttached: !!formData.media,
-    };
-
-    setCheckpoints([...checkpoints, newCheckpoint]);
-
-    setFormData({
-      userId: '',
-      region: '',
-      qrCode: '',
-      observation: '',
-      media: null,
-    });
+  // Fetch checkpoints
+  const fetchCheckpoints = async () => {
+    try {
+      const res = await axios.get('http://localhost:5000/api/checkpoints');
+      setCheckpoints(res.data.checkpoints);
+    } catch (err) {
+      console.error('Error fetching checkpoints:', err);
+    }
   };
 
-  const filteredCheckpoints = checkpoints.filter((cp) => {
-    const matchesUserId = filters.filterUserId ? cp.userId === filters.filterUserId : true;
-    const matchesFromDate = filters.fromDate ? new Date(cp.date) >= new Date(filters.fromDate) : true;
-    const matchesToDate = filters.toDate ? new Date(cp.date) <= new Date(filters.toDate) : true;
-    return matchesUserId && matchesFromDate && matchesToDate;
-  });
+  useEffect(() => {
+    fetchCheckpoints();
+  }, []);
+
+  // Convert QR to base64
+  const generateQRCodeData = () => {
+    const canvas = qrRef.current.querySelector('canvas');
+    return canvas.toDataURL('image/png'); // Base64 image
+  };
+
+  // Add checkpoint
+  const handleAddCheckpoint = async (e) => {
+    e.preventDefault();
+
+    if (!name || !location) return;
+
+    try {
+      const qrCode = generateQRCodeData();
+      const res = await axios.post('http://localhost:5000/api/checkpoints', {
+        name,
+        location,
+        qrCode
+      });
+
+      setCheckpoints([res.data.checkpoint, ...checkpoints]);
+      setName('');
+      setLocation('');
+    } catch (err) {
+      console.error('Error adding checkpoint:', err);
+    }
+  };
+
+  // Delete checkpoint
+  const handleDelete = async (id) => {
+    try {
+      await axios.delete(`http://localhost:5000/api/checkpoints/${id}`);
+      setCheckpoints(checkpoints.filter(cp => cp.id !== id));
+    } catch (err) {
+      console.error('Error deleting checkpoint:', err);
+    }
+  };
 
   return (
-    <div className="max-w-6xl mx-auto p-6 space-y-10">
-      <h2 className="text-2xl font-bold text-blue-800">New Check Point Visit</h2>
+    <div className="p-6">
+      <h2 className="text-2xl font-bold mb-4">Manage Checkpoints</h2>
 
-      {/* New Visit Form */}
-      <form onSubmit={handleVisitSubmit} className="grid grid-cols-1 md:grid-cols-2 gap-4 bg-white p-4 rounded shadow">
+      <form onSubmit={handleAddCheckpoint} className="mb-6 space-y-4">
         <input
           type="text"
-          name="userId"
-          value={formData.userId}
-          onChange={(e) => setFormData({ ...formData, userId: e.target.value })}
-          placeholder="User ID"
-          className="border px-3 py-2 rounded"
+          placeholder="Checkpoint Name"
+          value={name}
+          onChange={(e) => setName(e.target.value)}
+          className="border p-2 w-full"
           required
         />
-
-        <select
-          name="region"
-          value={formData.region}
-          onChange={(e) => setFormData({ ...formData, region: e.target.value })}
-          className="border px-3 py-2 rounded"
-          required
-        >
-          <option value="">Choose Region</option>
-          <option value="Nairobi">Nairobi</option>
-          <option value="Mombasa">Mombasa</option>
-          <option value="Kisumu">Kisumu</option>
-        </select>
-
-        {/* QR Code Scanner */}
-        <div className="col-span-2">
-          <label className="block mb-2 font-semibold">Scan QR Code</label>
-          <div id="qr-reader" className="w-full max-w-xs mx-auto mb-3"></div>
-          <input
-            type="text"
-            name="qrCode"
-            value={formData.qrCode}
-            onChange={(e) => setFormData({ ...formData, qrCode: e.target.value })}
-            placeholder="QR Code Result"
-            className="border px-3 py-2 rounded w-full"
-            readOnly
-          />
-        </div>
-
-        <textarea
-          name="observation"
-          value={formData.observation}
-          onChange={(e) => setFormData({ ...formData, observation: e.target.value })}
-          placeholder="On-Site Observation"
-          className="border px-3 py-2 rounded col-span-2"
-        ></textarea>
-
         <input
-          type="file"
-          accept="image/*,video/*"
-          onChange={(e) => setFormData({ ...formData, media: e.target.files[0] })}
-          className="col-span-2"
+          type="text"
+          placeholder="Location"
+          value={location}
+          onChange={(e) => setLocation(e.target.value)}
+          className="border p-2 w-full"
+          required
         />
 
-        <div className="md:col-span-2 text-right">
-          <button type="submit" className="bg-blue-700 text-white px-6 py-2 rounded hover:bg-blue-800">
-            Submit Visit
-          </button>
+        <div ref={qrRef} className="my-4">
+          <QRCodeCanvas value={`${name} - ${location}`} size={128} />
         </div>
+
+        <button type="submit" className="bg-blue-500 text-white px-4 py-2 rounded">
+          Add Checkpoint
+        </button>
       </form>
 
-      {/* Filter Section */}
-      <div className="bg-white p-4 rounded shadow space-y-4">
-        <h2 className="text-xl font-bold text-blue-800">Filter Check Point Records</h2>
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-          <input
-            type="date"
-            value={filters.fromDate}
-            onChange={(e) => setFilters({ ...filters, fromDate: e.target.value })}
-            className="border px-3 py-2 rounded"
-          />
-          <input
-            type="date"
-            value={filters.toDate}
-            onChange={(e) => setFilters({ ...filters, toDate: e.target.value })}
-            className="border px-3 py-2 rounded"
-          />
-          <input
-            type="text"
-            placeholder="User ID"
-            value={filters.filterUserId}
-            onChange={(e) => setFilters({ ...filters, filterUserId: e.target.value })}
-            className="border px-3 py-2 rounded"
-          />
-          <button className="bg-green-600 text-white px-4 py-2 rounded hover:bg-green-700">Filter</button>
-        </div>
-      </div>
-
-      {/* Results Table */}
-      <div className="bg-white p-4 rounded shadow">
-        <div className="flex justify-between items-center mb-2">
-          <p className="text-sm text-gray-600">{filteredCheckpoints.length} Results Found</p>
-          <div className="space-x-2">
-            <button className="bg-yellow-500 px-3 py-1 rounded text-white">Export to Excel</button>
-            <button className="bg-blue-800 px-3 py-1 rounded text-white">Print</button>
+      <div>
+        {checkpoints.map(cp => (
+          <div key={cp.id} className="border p-4 mb-4">
+            <h3 className="font-bold">{cp.name}</h3>
+            <p>{cp.location}</p>
+            {cp.qr_code && <img src={cp.qr_code} alt="QR Code" className="w-32 h-32" />}
+            <button
+              onClick={() => handleDelete(cp.id)}
+              className="bg-red-500 text-white px-4 py-2 mt-2 rounded"
+            >
+              Delete
+            </button>
           </div>
-        </div>
-
-        <div className="overflow-x-auto">
-          <table className="min-w-full text-sm text-left border">
-            <thead className="bg-blue-900 text-white">
-              <tr>
-                <th className="py-2 px-3">User ID</th>
-                <th className="py-2 px-3">Region</th>
-                <th className="py-2 px-3">Observation</th>
-                <th className="py-2 px-3">QR Code</th>
-                <th className="py-2 px-3">Photo/Video</th>
-                <th className="py-2 px-3">Date Visited</th>
-              </tr>
-            </thead>
-            <tbody>
-              {filteredCheckpoints.map((cp, index) => (
-                <tr key={index} className="border-b hover:bg-gray-50">
-                  <td className="py-2 px-3">{cp.userId}</td>
-                  <td className="py-2 px-3">{cp.region}</td>
-                  <td className="py-2 px-3">{cp.observation}</td>
-                  <td className="py-2 px-3">{cp.qrCode}</td>
-                  <td className="py-2 px-3">{cp.mediaAttached ? '(Attached)' : 'None'}</td>
-                  <td className="py-2 px-3">{cp.date}</td>
-                </tr>
-              ))}
-              {filteredCheckpoints.length === 0 && (
-                <tr>
-                  <td colSpan="6" className="text-center py-4 text-gray-500">
-                    No records found.
-                  </td>
-                </tr>
-              )}
-            </tbody>
-          </table>
-        </div>
+        ))}
       </div>
     </div>
   );
 }
-
-export default Checkpoints;
